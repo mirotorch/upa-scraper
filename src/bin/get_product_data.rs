@@ -7,42 +7,66 @@ async fn main() -> Result<(), Error> {
     Ok(())
 }
 
-async fn read_data(url: &str) -> Result<HashMap<String, String>, Error> {
+async fn read_page(url: &str) -> Result<Html, Error> {
     let body = reqwest::get(url).await?.text().await?;
     let document = Html::parse_document(&body);
+    return Ok(document);
+}
 
+fn read_data(document: &Html) -> Result<HashMap<String, String>, &'static str> {
     let mut data = HashMap::new();
-    let mut selector = Selector::parse("h1.product-title").unwrap();
-    data.insert(
-        "Name".to_string(),
-        document.select(&selector).next().unwrap().text().collect(),
-    );
 
-    selector = Selector::parse("div#product-details").unwrap();
+    // selectors
+    let title_selector = Selector::parse("h1.product-title").unwrap();
+    let details_selector = Selector::parse("div#product-details").unwrap();
+    let tr_selector = Selector::parse("tr").unwrap();
+    let th_selector = Selector::parse("th").unwrap();
+    let td_selector = Selector::parse("td").unwrap();
 
-    let product_details = match document.select(&selector).next() {
+    // get product name
+    let title = match document.select(&title_selector).next() {
         Some(x) => x,
-        None => panic!("product details not found"),
+        None => return Err("title not found"),
+    };
+    data.insert("Name".to_string(), title.text().collect::<String>());
+
+    let product_details = match document.select(&details_selector).next() {
+        Some(x) => x,
+        None => return Err("product details not found"),
     };
 
-    selector = Selector::parse("tr").unwrap();
-
-    for tr in product_details.select(&selector) {
-        let mut children = tr.children().filter_map(|c| c.value().as_element());
-        let th = tr
-            .select(&Selector::parse("th").unwrap())
-            .next()
-            .unwrap()
-            .text()
-            .collect::<String>();
-        let td = tr
-            .select(&Selector::parse("td").unwrap())
-            .next()
-            .unwrap()
-            .text()
-            .collect::<String>();
-        data.insert(th, td);
+    for tr in product_details.select(&tr_selector) {
+        let th = tr.select(&th_selector).next();
+        let td = tr.select(&td_selector).next();
+        if th.is_some() && td.is_some() {
+            data.insert(
+                th.unwrap().text().collect::<String>(),
+                td.unwrap().text().collect::<String>(),
+            );
+        }
     }
 
     return Ok(data);
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use std::fs;
+
+    #[test]
+    fn test_read_data() {
+        if cfg!(debug_assertions) {
+            let test_page = match fs::read_to_string("test_page.html") {
+                Err(e) => panic!("couldn't open test page: {}", e),
+                Ok(f) => f,
+            };
+            let document = Html::parse_document(&test_page);
+            let data = match read_data(&document) {
+                Ok(x) => x,
+                Err(e) => panic!("error reading product info: {}", e),
+            };
+            println!("{:#?}", data);
+        }
+    }
 }
