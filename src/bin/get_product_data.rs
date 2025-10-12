@@ -1,11 +1,37 @@
 use reqwest::Error;
 use scraper::{Html, Selector};
 use std::collections::HashMap;
+use std::io::{self, BufRead};
 use std::sync::LazyLock;
+use std::thread;
+use std::time::Duration;
 
 #[tokio::main]
-async fn main() -> Result<(), Error> {
-    Ok(())
+async fn main() -> () {
+    let stdin = io::stdin();
+    let reader = io::BufReader::new(stdin.lock());
+    let mut product_infos: Vec<HashMap<String, String>> = Vec::new();
+
+    let mut counter: i32 = 0;
+    for line in reader.lines() {
+        let url = line.expect("failed to read from stdin");
+        let document = match read_page(&url).await {
+            Ok(x) => x,
+            Err(e) => {
+                eprintln!("failed to load HTML document: {}", e);
+                continue;
+            }
+        };
+        match read_data(&document) {
+            Ok(doc) => product_infos.push(doc),
+            Err(e) => eprintln!("failed to read product info: {}", e),
+        }
+        // divide requests to avoid overloading of the server
+        counter += 1;
+        if counter >= 30 {
+            thread::sleep(Duration::from_secs(10));
+        }
+    }
 }
 
 async fn read_page(url: &str) -> Result<Html, Error> {
