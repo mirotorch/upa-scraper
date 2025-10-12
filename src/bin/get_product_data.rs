@@ -1,6 +1,7 @@
 use reqwest::Error;
 use scraper::{Html, Selector};
 use std::collections::HashMap;
+use std::sync::LazyLock;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
@@ -13,15 +14,17 @@ async fn read_page(url: &str) -> Result<Html, Error> {
     return Ok(document);
 }
 
+// selectors for read_data
+static details_selector: LazyLock<Selector> =
+    LazyLock::new(|| Selector::parse("div#product-details").unwrap());
+static title_selector: LazyLock<Selector> =
+    LazyLock::new(|| Selector::parse("h1.product-title").unwrap());
+static th_selector: LazyLock<Selector> = LazyLock::new(|| Selector::parse("th").unwrap());
+static tr_selector: LazyLock<Selector> = LazyLock::new(|| Selector::parse("tr").unwrap());
+static td_selector: LazyLock<Selector> = LazyLock::new(|| Selector::parse("td").unwrap());
+
 fn read_data(document: &Html) -> Result<HashMap<String, String>, &'static str> {
     let mut data = HashMap::new();
-
-    // selectors
-    let title_selector = Selector::parse("h1.product-title").unwrap();
-    let details_selector = Selector::parse("div#product-details").unwrap();
-    let tr_selector = Selector::parse("tr").unwrap();
-    let th_selector = Selector::parse("th").unwrap();
-    let td_selector = Selector::parse("td").unwrap();
 
     // get product name
     let title = match document.select(&title_selector).next() {
