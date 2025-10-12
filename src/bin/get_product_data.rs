@@ -1,7 +1,8 @@
 use reqwest::Error;
 use scraper::{Html, Selector};
-use std::collections::HashMap;
-use std::io::{self, BufRead};
+use std::collections::{HashMap, HashSet};
+use std::fs::File;
+use std::io::{self, BufRead, Write};
 use std::sync::LazyLock;
 use std::thread;
 use std::time::Duration;
@@ -30,6 +31,17 @@ async fn main() -> () {
         counter += 1;
         if counter >= 30 {
             thread::sleep(Duration::from_secs(10));
+        }
+    }
+    // complete missing values
+    let keys: HashSet<_> = product_infos
+        .iter()
+        .flat_map(|map| map.keys().cloned())
+        .collect();
+
+    for map in &mut product_infos {
+        for key in &keys {
+            map.entry(key.clone()).or_insert_with(|| "NaN".to_string());
         }
     }
 }
