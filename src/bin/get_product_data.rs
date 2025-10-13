@@ -26,7 +26,7 @@ async fn main() {
         let document = match read_page(&url).await {
             Ok(x) => x,
             Err(e) => {
-                eprintln!("failed to load HTML document: {}", e);
+                eprintln!("url: {}\nfailed to load HTML document: {}", url, e);
                 continue;
             }
         };
@@ -35,7 +35,7 @@ async fn main() {
                 product_infos.push(doc);
                 // println!("Ok");
             }
-            Err(e) => eprintln!("failed to read product info: {}", e),
+            Err(e) => eprintln!("url: {}\nfailed to read product info: {}", url, e),
         }
     }
 
@@ -71,7 +71,7 @@ async fn read_page(url: &str) -> Result<Html, Error> {
         .get(url)
         .header(
             "User-Agent",
-            "Mozilla/5.0 (X11; Linux x86_64; rv:143.0) Gecko/20100101 Firefox/143.0",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:124.0) Gecko/20100101 Firefox/124.0",
         )
         .send()
         .await?
