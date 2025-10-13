@@ -1,8 +1,8 @@
+use once_cell::sync::Lazy;
 use reqwest::Error;
 use scraper::{Html, Selector};
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 use std::io::{self, BufRead};
-use std::sync::LazyLock;
 
 #[tokio::main]
 async fn main() {
@@ -56,7 +56,7 @@ async fn main() {
     for map in product_infos {
         let line = header
             .iter()
-            .map(|att| map.get(*att).map(|val| val.as_str()).unwrap_or(""))
+            .map(|att| map.get(*att).map(|val| val.as_str()).unwrap_or("NaN"))
             .collect::<Vec<_>>()
             .join("\t");
 
@@ -82,15 +82,14 @@ async fn read_page(url: &str) -> Result<Html, Error> {
 }
 
 // selectors for read_data
-static TITLE_SELECTOR: LazyLock<Selector> =
-    LazyLock::new(|| Selector::parse("h1.product-title").unwrap());
-static PRICE_SELECTOR: LazyLock<Selector> =
-    LazyLock::new(|| Selector::parse("span.price-current-label").unwrap());
-static DETAILS_SELECTOR: LazyLock<Selector> =
-    LazyLock::new(|| Selector::parse("div#product-details").unwrap());
-static TR_SELECTOR: LazyLock<Selector> = LazyLock::new(|| Selector::parse("tr").unwrap());
-static TH_SELECTOR: LazyLock<Selector> = LazyLock::new(|| Selector::parse("th").unwrap());
-static TD_SELECTOR: LazyLock<Selector> = LazyLock::new(|| Selector::parse("td").unwrap());
+static TITLE_SELECTOR: Lazy<Selector> = Lazy::new(|| Selector::parse("h1.product-title").unwrap());
+static PRICE_SELECTOR: Lazy<Selector> =
+    Lazy::new(|| Selector::parse("span.price-current-label").unwrap());
+static DETAILS_SELECTOR: Lazy<Selector> =
+    Lazy::new(|| Selector::parse("div#product-details").unwrap());
+static TR_SELECTOR: Lazy<Selector> = Lazy::new(|| Selector::parse("tr").unwrap());
+static TH_SELECTOR: Lazy<Selector> = Lazy::new(|| Selector::parse("th").unwrap());
+static TD_SELECTOR: Lazy<Selector> = Lazy::new(|| Selector::parse("td").unwrap());
 
 fn read_data(
     document: &Html,
@@ -125,7 +124,12 @@ fn read_data(
             if attributes.contains(&th_text) {
                 data.insert(
                     th_text,
-                    td.unwrap().text().collect::<String>().replace("\n", ";"),
+                    td.unwrap()
+                        .text()
+                        .collect::<String>()
+                        .split_whitespace()
+                        .collect::<Vec<_>>()
+                        .join(" "),
                 );
             }
         }
@@ -147,7 +151,18 @@ mod test {
                 Ok(f) => f,
             };
             let document = Html::parse_document(&test_page);
-            let data = match read_data(&document) {
+            let header = vec![
+                "Name",
+                "Price",
+                "Brand",
+                "Response Time",
+                "Refresh Rate",
+                "Resolution",
+                "Panel",
+            ];
+            let attributes: HashSet<String> =
+                header.iter().copied().map(|x| x.to_string()).collect();
+            let data = match read_data(&document, &attributes) {
                 Ok(x) => x,
                 Err(e) => panic!("error reading product info: {}", e),
             };
