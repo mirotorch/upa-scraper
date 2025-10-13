@@ -1,3 +1,3 @@
 #!/bin/bash
-./target/release/get_urls
+./target/release/get_urls > urls.txt
 cat urls.txt | head -n 10 | ./target/release/get_product_data
