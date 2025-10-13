@@ -1,8 +1,7 @@
 use reqwest::Error;
 use scraper::{Html, Selector};
 use std::collections::{HashMap, HashSet};
-use std::fs::File;
-use std::io::{self, BufRead, Write};
+use std::io::{self, BufRead};
 use std::sync::LazyLock;
 
 #[tokio::main]
@@ -13,7 +12,7 @@ async fn main() {
 
     for line in reader.lines() {
         let url = line.expect("failed to read from stdin");
-        println!("Reading {}", url);
+        // println!("Reading {}", url);
         let document = match read_page(&url).await {
             Ok(x) => x,
             Err(e) => {
@@ -24,7 +23,7 @@ async fn main() {
         match read_data(&document) {
             Ok(doc) => {
                 product_infos.push(doc);
-                println!("Ok");
+                // println!("Ok");
             }
             Err(e) => eprintln!("failed to read product info: {}", e),
         }
@@ -41,15 +40,10 @@ async fn main() {
         }
     }
 
-    let mut tsv = match File::create("data.tsv") {
-        Ok(f) => f,
-        Err(e) => panic!("couldn't create data.tsv file: {}", e),
-    };
-
     let mut header: Vec<String> = Vec::new();
     header.push("Name".to_string());
     header.extend(keys.iter().filter(|x| *x != "Name").cloned());
-    tsv.write_all(header.join("\t").as_bytes()).unwrap();
+    println!("{}", header.join("\t"));
 
     for map in product_infos {
         let line = header
@@ -58,11 +52,9 @@ async fn main() {
             .collect::<Vec<_>>()
             .join("\t");
 
-        tsv.write_all(line.as_bytes()).unwrap();
-        tsv.write_all(b"\n").unwrap();
+        println!("{}", line);
     }
-    tsv.flush().unwrap();
-    println!("Product data have been saved into data.tsv");
+    // println!("Product data have been saved into data.tsv");
 }
 
 async fn read_page(url: &str) -> Result<Html, Error> {
