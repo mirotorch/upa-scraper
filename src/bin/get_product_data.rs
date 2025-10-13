@@ -27,11 +27,6 @@ async fn main() -> () {
             Ok(doc) => product_infos.push(doc),
             Err(e) => eprintln!("failed to read product info: {}", e),
         }
-        // divide requests to avoid overloading of the server
-        counter += 1;
-        if counter >= 30 {
-            thread::sleep(Duration::from_secs(10));
-        }
     }
     // complete missing values
     let keys: HashSet<_> = product_infos
@@ -44,6 +39,11 @@ async fn main() -> () {
             map.entry(key.clone()).or_insert_with(|| "NaN".to_string());
         }
     }
+
+    // let mut tsv = match File::create("data.tsv") {
+    //     Ok(f) => f,
+    //     Err(e) => panic!("couldn't create data.tsv file: {}", e),
+    // };
 }
 
 async fn read_page(url: &str) -> Result<Html, Error> {
