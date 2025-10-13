@@ -8,6 +8,10 @@ fn main() {
     let profile = env::var("PROFILE").unwrap();
     if profile == "debug" {
         let source_path = Path::new("test_page.html");
+        if !source_path.exists() {
+            return;
+        }
+
         let dest_dir = Path::new(&out_dir)
             .parent()
             .unwrap()
