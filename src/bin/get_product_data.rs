@@ -11,7 +11,7 @@ async fn main() {
     let mut product_infos: Vec<HashMap<String, String>> = Vec::new();
 
     for line in reader.lines() {
-        let url = line.expect("failed to read from stdin");
+        let url = line.expect("failed to read from stdin") + "?recaptcha=pass";
         // println!("Reading {}", url);
         let document = match read_page(&url).await {
             Ok(x) => x,
