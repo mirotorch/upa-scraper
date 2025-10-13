@@ -40,10 +40,27 @@ async fn main() -> () {
         }
     }
 
-    // let mut tsv = match File::create("data.tsv") {
-    //     Ok(f) => f,
-    //     Err(e) => panic!("couldn't create data.tsv file: {}", e),
-    // };
+    let mut tsv = match File::create("data.tsv") {
+        Ok(f) => f,
+        Err(e) => panic!("couldn't create data.tsv file: {}", e),
+    };
+
+    let mut header: Vec<String> = Vec::new();
+    header.push("Name".to_string());
+    header.extend(keys.iter().filter(|x| *x != "Name").cloned());
+    tsv.write_all(header.join("\t").as_bytes()).unwrap_err();
+
+    for map in product_infos {
+        let line = header
+            .iter()
+            .map(|att| map.get(att).map(|val| val.as_str()).unwrap_or(""))
+            .collect::<Vec<_>>()
+            .join("\t");
+
+        tsv.write_all(line.as_bytes()).unwrap();
+        tsv.write_all(b"\n").unwrap();
+    }
+    tsv.flush().unwrap();
 }
 
 async fn read_page(url: &str) -> Result<Html, Error> {
