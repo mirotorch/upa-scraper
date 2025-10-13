@@ -4,18 +4,16 @@ use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{self, BufRead, Write};
 use std::sync::LazyLock;
-use std::thread;
-use std::time::Duration;
 
 #[tokio::main]
-async fn main() -> () {
+async fn main() {
     let stdin = io::stdin();
     let reader = io::BufReader::new(stdin.lock());
     let mut product_infos: Vec<HashMap<String, String>> = Vec::new();
 
-    let mut counter: i32 = 0;
     for line in reader.lines() {
         let url = line.expect("failed to read from stdin");
+        println!("Reading {}", url);
         let document = match read_page(&url).await {
             Ok(x) => x,
             Err(e) => {
@@ -24,7 +22,10 @@ async fn main() -> () {
             }
         };
         match read_data(&document) {
-            Ok(doc) => product_infos.push(doc),
+            Ok(doc) => {
+                product_infos.push(doc);
+                println!("Ok");
+            }
             Err(e) => eprintln!("failed to read product info: {}", e),
         }
     }
@@ -48,7 +49,7 @@ async fn main() -> () {
     let mut header: Vec<String> = Vec::new();
     header.push("Name".to_string());
     header.extend(keys.iter().filter(|x| *x != "Name").cloned());
-    tsv.write_all(header.join("\t").as_bytes()).unwrap_err();
+    tsv.write_all(header.join("\t").as_bytes()).unwrap();
 
     for map in product_infos {
         let line = header
@@ -61,10 +62,21 @@ async fn main() -> () {
         tsv.write_all(b"\n").unwrap();
     }
     tsv.flush().unwrap();
+    println!("Product data have been saved into data.tsv");
 }
 
 async fn read_page(url: &str) -> Result<Html, Error> {
-    let body = reqwest::get(url).await?.text().await?;
+    let client = reqwest::Client::new();
+    let body = client
+        .get(url)
+        .header(
+            "User-Agent",
+            "Mozilla/5.0 (X11; Linux x86_64; rv:143.0) Gecko/20100101 Firefox/143.0",
+        )
+        .send()
+        .await?
+        .text()
+        .await?;
     let document = Html::parse_document(&body);
     return Ok(document);
 }
@@ -99,7 +111,7 @@ fn read_data(document: &Html) -> Result<HashMap<String, String>, &'static str> {
         if th.is_some() && td.is_some() {
             data.insert(
                 th.unwrap().text().collect::<String>(),
-                td.unwrap().text().collect::<String>(),
+                td.unwrap().text().collect::<String>().replace("\n", ";"),
             );
         }
     }
