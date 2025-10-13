@@ -1,6 +1,6 @@
 use reqwest::Error;
 use scraper::{Html, Selector};
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::io::{self, BufRead};
 use std::sync::LazyLock;
 
@@ -9,6 +9,16 @@ async fn main() {
     let stdin = io::stdin();
     let reader = io::BufReader::new(stdin.lock());
     let mut product_infos: Vec<HashMap<String, String>> = Vec::new();
+    let header = vec![
+        "Name",
+        "Price",
+        "Brand",
+        "Response Time",
+        "Refresh Rate",
+        "Resolution",
+        "Panel",
+    ];
+    let attributes: HashSet<String> = header.iter().copied().map(|x| x.to_string()).collect();
 
     for line in reader.lines() {
         let url = line.expect("failed to read from stdin") + "?recaptcha=pass";
@@ -20,7 +30,7 @@ async fn main() {
                 continue;
             }
         };
-        match read_data(&document) {
+        match read_data(&document, &attributes) {
             Ok(doc) => {
                 product_infos.push(doc);
                 // println!("Ok");
@@ -28,6 +38,7 @@ async fn main() {
             Err(e) => eprintln!("failed to read product info: {}", e),
         }
     }
+
     // complete missing values
     let keys: HashSet<_> = product_infos
         .iter()
@@ -40,15 +51,12 @@ async fn main() {
         }
     }
 
-    let mut header: Vec<String> = Vec::new();
-    header.push("Name".to_string());
-    header.extend(keys.iter().filter(|x| *x != "Name").cloned());
     println!("{}", header.join("\t"));
 
     for map in product_infos {
         let line = header
             .iter()
-            .map(|att| map.get(att).map(|val| val.as_str()).unwrap_or(""))
+            .map(|att| map.get(*att).map(|val| val.as_str()).unwrap_or(""))
             .collect::<Vec<_>>()
             .join("\t");
 
@@ -74,15 +82,20 @@ async fn read_page(url: &str) -> Result<Html, Error> {
 }
 
 // selectors for read_data
-static DETAILS_SELECTOR: LazyLock<Selector> =
-    LazyLock::new(|| Selector::parse("div#product-details").unwrap());
 static TITLE_SELECTOR: LazyLock<Selector> =
     LazyLock::new(|| Selector::parse("h1.product-title").unwrap());
+static PRICE_SELECTOR: LazyLock<Selector> =
+    LazyLock::new(|| Selector::parse("span.price-current-label").unwrap());
+static DETAILS_SELECTOR: LazyLock<Selector> =
+    LazyLock::new(|| Selector::parse("div#product-details").unwrap());
 static TR_SELECTOR: LazyLock<Selector> = LazyLock::new(|| Selector::parse("tr").unwrap());
 static TH_SELECTOR: LazyLock<Selector> = LazyLock::new(|| Selector::parse("th").unwrap());
 static TD_SELECTOR: LazyLock<Selector> = LazyLock::new(|| Selector::parse("td").unwrap());
 
-fn read_data(document: &Html) -> Result<HashMap<String, String>, &'static str> {
+fn read_data(
+    document: &Html,
+    attributes: &HashSet<String>,
+) -> Result<HashMap<String, String>, &'static str> {
     let mut data = HashMap::new();
 
     // get product name
@@ -91,6 +104,13 @@ fn read_data(document: &Html) -> Result<HashMap<String, String>, &'static str> {
         None => return Err("title not found"),
     };
     data.insert("Name".to_string(), title.text().collect::<String>());
+
+    // get current price
+    let price = match document.select(&PRICE_SELECTOR).next() {
+        Some(x) => x,
+        None => return Err("price not found"),
+    };
+    data.insert("Price".to_string(), price.text().collect::<String>());
 
     let product_details = match document.select(&DETAILS_SELECTOR).next() {
         Some(x) => x,
@@ -101,10 +121,13 @@ fn read_data(document: &Html) -> Result<HashMap<String, String>, &'static str> {
         let th = tr.select(&TH_SELECTOR).next();
         let td = tr.select(&TD_SELECTOR).next();
         if th.is_some() && td.is_some() {
-            data.insert(
-                th.unwrap().text().collect::<String>(),
-                td.unwrap().text().collect::<String>().replace("\n", ";"),
-            );
+            let th_text = th.unwrap().text().collect::<String>();
+            if attributes.contains(&th_text) {
+                data.insert(
+                    th_text,
+                    td.unwrap().text().collect::<String>().replace("\n", ";"),
+                );
+            }
         }
     }
 
