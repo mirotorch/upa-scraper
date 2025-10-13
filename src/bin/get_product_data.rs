@@ -53,32 +53,32 @@ async fn read_page(url: &str) -> Result<Html, Error> {
 }
 
 // selectors for read_data
-static details_selector: LazyLock<Selector> =
+static DETAILS_SELECTOR: LazyLock<Selector> =
     LazyLock::new(|| Selector::parse("div#product-details").unwrap());
-static title_selector: LazyLock<Selector> =
+static TITLE_SELECTOR: LazyLock<Selector> =
     LazyLock::new(|| Selector::parse("h1.product-title").unwrap());
-static th_selector: LazyLock<Selector> = LazyLock::new(|| Selector::parse("th").unwrap());
-static tr_selector: LazyLock<Selector> = LazyLock::new(|| Selector::parse("tr").unwrap());
-static td_selector: LazyLock<Selector> = LazyLock::new(|| Selector::parse("td").unwrap());
+static TR_SELECTOR: LazyLock<Selector> = LazyLock::new(|| Selector::parse("tr").unwrap());
+static TH_SELECTOR: LazyLock<Selector> = LazyLock::new(|| Selector::parse("th").unwrap());
+static TD_SELECTOR: LazyLock<Selector> = LazyLock::new(|| Selector::parse("td").unwrap());
 
 fn read_data(document: &Html) -> Result<HashMap<String, String>, &'static str> {
     let mut data = HashMap::new();
 
     // get product name
-    let title = match document.select(&title_selector).next() {
+    let title = match document.select(&TITLE_SELECTOR).next() {
         Some(x) => x,
         None => return Err("title not found"),
     };
     data.insert("Name".to_string(), title.text().collect::<String>());
 
-    let product_details = match document.select(&details_selector).next() {
+    let product_details = match document.select(&DETAILS_SELECTOR).next() {
         Some(x) => x,
         None => return Err("product details not found"),
     };
 
-    for tr in product_details.select(&tr_selector) {
-        let th = tr.select(&th_selector).next();
-        let td = tr.select(&td_selector).next();
+    for tr in product_details.select(&TR_SELECTOR) {
+        let th = tr.select(&TH_SELECTOR).next();
+        let td = tr.select(&TD_SELECTOR).next();
         if th.is_some() && td.is_some() {
             data.insert(
                 th.unwrap().text().collect::<String>(),
