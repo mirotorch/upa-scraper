@@ -83,8 +83,7 @@ async fn read_page(url: &str) -> Result<Html, Error> {
 
 // selectors for read_data
 static TITLE_SELECTOR: Lazy<Selector> = Lazy::new(|| Selector::parse("h1.product-title").unwrap());
-static PRICE_SELECTOR: Lazy<Selector> =
-    Lazy::new(|| Selector::parse("span.price-current-label").unwrap());
+static PRICE_SELECTOR: Lazy<Selector> = Lazy::new(|| Selector::parse("div.price-current").unwrap());
 static DETAILS_SELECTOR: Lazy<Selector> =
     Lazy::new(|| Selector::parse("div#product-details").unwrap());
 static TR_SELECTOR: Lazy<Selector> = Lazy::new(|| Selector::parse("tr").unwrap());
@@ -120,7 +119,7 @@ fn read_data(
         let th = tr.select(&TH_SELECTOR).next();
         let td = tr.select(&TD_SELECTOR).next();
         if th.is_some() && td.is_some() {
-            let th_text = th.unwrap().text().collect::<String>();
+            let th_text = th.unwrap().text().collect::<String>().trim().to_string();
             if attributes.contains(&th_text) {
                 data.insert(
                     th_text,
