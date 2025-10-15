@@ -10,6 +10,7 @@ async fn main() {
     let reader = io::BufReader::new(stdin.lock());
     let mut product_infos: Vec<HashMap<String, String>> = Vec::new();
     let header = vec![
+        "URL",
         "Name",
         "Price",
         "Brand",
@@ -31,7 +32,8 @@ async fn main() {
             }
         };
         match read_data(&document, &attributes) {
-            Ok(doc) => {
+            Ok(mut doc) => {
+                doc.insert("URL".to_string(), url);
                 product_infos.push(doc);
                 // println!("Ok");
             }
